@@ -63,7 +63,7 @@ function init()
 
 
     var vertices = genVertices();
-
+    //console.log(vertices);
     function genVertices() {
         return [scale(scaleFactor,vec2(-1.0,1.0/Math.cos(radians(30))-2.0*Math.sin(radians(60)))),
             scale(scaleFactor,vec2(0.0,1.0/Math.cos(radians(30)))),
@@ -141,6 +141,16 @@ function triangle( a, b, c )
 }
 */
 
+
+
+var colorBase = [
+    vec3(1.0,0.0,0.0),
+    vec3(0.0,1.0,0.0),
+    vec3(0.0,0.0,1.0),
+    //vec3(1.0,1.0,1.0)
+];
+
+
 function divideTriangle( a, b, c, count )
 {
 
@@ -149,22 +159,34 @@ function divideTriangle( a, b, c, count )
     //use iteration
     var queue1 = [a,b,c], queue2 = [], curr = queue1, next = queue2;
 
+    var queue1Color = colorBase, queue2Color = [], currColor = queue1Color, nextColor = queue2Color;
+
+
     function swap() {
         if (curr === queue1) {
             curr = queue2;
             queue1 = [];
             next = queue1;
+
+            currColor = queue2Color;
+            queue1Color = [];
+            nextColor = queue1Color;
+
         }else{
             curr = queue1;
             queue2 = [];
             next = queue2;
+
+            currColor = queue1Color;
+            queue2Color = [];
+            nextColor = queue2Color;
         }
 
         --count;
     };
 
 
-    var idx,v1,v2,v3;
+    var idx,v1,v2,v3,c1,c2,c3;
     while (count > 0 ) {
         for (idx = 0; idx < curr.length; idx += 3) {
             v1 = curr[idx];
@@ -175,16 +197,35 @@ function divideTriangle( a, b, c, count )
             next.push(mix(v1,v2,0.5));
             next.push(mix(v1,v3,0.5));
 
-
-
             next.push(mix(v1,v2,0.5));
             next.push(v2);
             next.push(mix(v2,v3,0.5));
 
-
             next.push(mix(v1,v3,0.5));
             next.push(mix(v3,v2,0.5));
             next.push(v3);
+
+            c1 = currColor[idx];
+            c2 = currColor[idx+1];
+            c3 = currColor[idx+2];
+
+            nextColor.push(c1);
+            nextColor.push(mix(c1,c2,0.5));
+            nextColor.push(mix(c1,c3,0.5));
+
+            nextColor.push(mix(c1,c2,0.5));
+            nextColor.push(c2);
+            nextColor.push(mix(c2,c3,0.5));
+
+            nextColor.push(mix(c1,c3,0.5));
+            nextColor.push(mix(c3,c2,0.5));
+            nextColor.push(c3);
+
+
+
+
+
+
 
             /*
             next.push(mix(v1,v2,0.5));
@@ -200,23 +241,9 @@ function divideTriangle( a, b, c, count )
     colors = [];
     //console.log(curr);
 
-
-    //generating lines
-    //curr = trianglesToLines(curr);
-
-
-
-    var colorBase = [
-        vec3(1.0,0.0,0.0),
-        vec3(0.0,1.0,0.0),
-        vec3(0.0,0.0,1.0),
-        //vec3(1.0,1.0,1.0)
-    ];
-
-
     for (idx in curr) {
         points.push(curr[idx]);
-        colors.push(colorBase[idx%3]);
+        colors.push(currColor[idx]);
     }
 
 
@@ -273,6 +300,7 @@ function rotate2 (degree, pts)
             *Math.sqrt (ret[idx][0]* ret[idx][0]+ ret[idx][1]* ret[idx][1])
             *Math.sqrt(3.0)*0.5;
 
+        //theta = radians(degree);
         v1 = vec2(Math.cos(theta),-Math.sin(theta));
         v2 = vec2(Math.sin(theta),Math.cos(theta));
         ret[idx]=  vec2(dot(v1,ret[idx])+twistCenter[0],dot(v2,ret[idx])+twistCenter[1]);
@@ -295,7 +323,7 @@ function refresh(){
 
     }
 
-    console.log(twistCenter);
+    //console.log(twistCenter);
     //console.log(twistCenter);
     render();
 
