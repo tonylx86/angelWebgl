@@ -5,14 +5,14 @@ var gl;
 
 var points = [];
 var colors = [];
-var numTimesToSubdivide = 5;
 
+var numTimesToSubdivide;
 var bufferId;
 var cbufferId;
-var rotation = 0.0;
-var scaleFactor = 0.75;
-
+var u_rotation;
+var u_scale;
 var twistCenter = vec2(0.0,0.0);
+var u_center;
 
 function init()
 {
@@ -61,24 +61,11 @@ function init()
     gl.vertexAttribPointer( vColor, 3, gl.FLOAT, false, 0, 0 );
     gl.enableVertexAttribArray( vColor );
 
+    u_rotation = gl.getUniformLocation(program,'u_rotation');
+    u_scale = gl.getUniformLocation(program,'u_scale');
+    u_center = gl.getUniformLocation(program,'u_center');
 
-    var vertices = genVertices();
-    //console.log(vertices);
-    function genVertices() {
-        return [scale(scaleFactor,vec2(-1.0,1.0/Math.cos(radians(30))-2.0*Math.sin(radians(60)))),
-            scale(scaleFactor,vec2(0.0,1.0/Math.cos(radians(30)))),
-            scale(scaleFactor,vec2(1.0,1.0/Math.cos(radians(30))-2.0*Math.sin(radians(60))))];
-
-    }
-
-
-
-    //points = [];
-    divideTriangle( vertices[0], vertices[1], vertices[2],
-        numTimesToSubdivide);
-
-
-
+    //rotation slider
     document.getElementById("slider1").onchange = function(event) {
 
         var targ;
@@ -87,11 +74,13 @@ function init()
         if (targ.nodeType == 3) // defeat Safari bug
             targ = targ.parentNode;
 
-        rotation = Number(targ.value);
+        var rotation = Number(targ.value);
         document.getElementById("degrees").innerText = rotation;
+        gl.uniform1f(u_rotation,rotation);
         refresh();
     };
 
+    //subdivide level slider
     document.getElementById("slider2").onchange = function(event) {
 
 
@@ -103,11 +92,8 @@ function init()
 
         numTimesToSubdivide = Number(targ.value);
         document.getElementById("steps").innerText = numTimesToSubdivide;
-
-
-        //points = [];
-        //colors = []
         divideTriangle( vertices[0], vertices[1], vertices[2], numTimesToSubdivide);
+        sendVertices();
         refresh();
     };
 
@@ -121,26 +107,34 @@ function init()
             targ = targ.parentNode;
 
         //console.log(scaleFactor);
-        scaleFactor = Number(targ.value);
+        var scaleFactor = Number(targ.value);
         document.getElementById("scale").innerText = scaleFactor;
 
-        vertices = genVertices();
-        divideTriangle( vertices[0], vertices[1], vertices[2], numTimesToSubdivide);
+        gl.uniform1f(u_scale,scaleFactor);
         refresh();
     };
 
 
-    render();
+
+
+
+    numTimesToSubdivide = Number(document.getElementById("slider2").value);
+
+
+    var vertices = genVertices();
+    //console.log(vertices);
+    function genVertices() {
+        return [(vec2(-1.0,1.0/Math.cos(radians(30))-2.0*Math.sin(radians(60)))),
+            (vec2(0.0,1.0/Math.cos(radians(30)))),
+            (vec2(1.0,1.0/Math.cos(radians(30))-2.0*Math.sin(radians(60))))];
+
+    }
+
+    divideTriangle( vertices[0], vertices[1], vertices[2], numTimesToSubdivide);
+    sendVertices();
+
+    refresh();
 }
-
-/*
-function triangle( a, b, c )
-{
-    points.push( a, b, c);
-
-}
-*/
-
 
 
 var colorBase = [
@@ -149,7 +143,6 @@ var colorBase = [
     vec3(0.0,0.0,1.0),
     //vec3(1.0,1.0,1.0)
 ];
-
 
 function divideTriangle( a, b, c, count )
 {
@@ -221,12 +214,6 @@ function divideTriangle( a, b, c, count )
             nextColor.push(mix(c3,c2,0.5));
             nextColor.push(c3);
 
-
-
-
-
-
-
             /*
             next.push(mix(v1,v2,0.5));
             next.push(mix(v3,v2,0.5));
@@ -246,69 +233,34 @@ function divideTriangle( a, b, c, count )
         colors.push(currColor[idx]);
     }
 
-
-
 }
 
-function trianglesToLines(pts) {
-    var a, b, c,tmp = [];
-    for (var idx=0; idx < pts.length; idx += 3) {
-        a = pts[idx];
-        b = pts[idx+1];
-        c = pts[idx+2];
-        tmp.push(a,b,b,c,c,a);
-    }
-    return tmp;
-}
+
 
 
 window.onload = init;
 
-function render()
-{
 
-
-
-    var pts = rotate2(rotation,points);
-
-
+//send vertices to gpu
+function sendVertices() {
     gl.bindBuffer( gl.ARRAY_BUFFER, bufferId );
-    gl.bufferSubData(gl.ARRAY_BUFFER, 0, flatten(pts));
+    gl.bufferSubData(gl.ARRAY_BUFFER, 0, flatten(points));
 
     gl.bindBuffer(gl.ARRAY_BUFFER,cbufferId);
     gl.bufferSubData(gl.ARRAY_BUFFER,0,flatten(colors));
-    //gl.drawArrays( gl.TRIANGLES, 0, points.length );
+}
+
+function render()
+{
     gl.clearColor(0.0,0.0,0.0,1.0);
     gl.clear( gl.COLOR_BUFFER_BIT );
-    gl.drawArrays( gl.TRIANGLES, 0, pts.length );
-    //requestAnimFrame(render);
+    gl.drawArrays( gl.TRIANGLES, 0, points.length );
 }
 
-//return the rotated vertices
-function rotate2 (degree, pts)
-{
-    if (!Array.isArray(pts)) {
-        throw "not a points array";
-    }
-    var theta,v1,v2;
-    var ret = [];
-    for (var idx in pts) {
-
-        //console.log(twistCenter);
-        ret[idx] = vec2(pts[idx][0]-twistCenter[0],pts[idx][1]-twistCenter[1]);
-        theta =radians(degree)
-            *Math.sqrt (ret[idx][0]* ret[idx][0]+ ret[idx][1]* ret[idx][1])
-            *Math.sqrt(3.0)*0.5;
-
-        //theta = radians(degree);
-        v1 = vec2(Math.cos(theta),-Math.sin(theta));
-        v2 = vec2(Math.sin(theta),Math.cos(theta));
-        ret[idx]=  vec2(dot(v1,ret[idx])+twistCenter[0],dot(v2,ret[idx])+twistCenter[1]);
-    }
-    return ret;
-}
 
 function refresh(){
+
+    var twistCenter = [0.0,0.0];
     twistCenter[0] = Number(document.getElementById('twistX').value);
     twistCenter[1] = Number(document.getElementById('twistY').value);
 
@@ -323,8 +275,9 @@ function refresh(){
 
     }
 
-    //console.log(twistCenter);
-    //console.log(twistCenter);
-    render();
+    gl.uniform2f(u_center,twistCenter[0],twistCenter[1]);
+    gl.uniform1f(u_rotation,Number(document.getElementById("slider1").value));
+    gl.uniform1f(u_scale,Number(document.getElementById('scaleFactor').value));
 
+    render();
 }
