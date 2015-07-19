@@ -1,12 +1,11 @@
 <!DOCTYPE html>
 
 <head>
-<meta http-equiv="Content-Type" content="text/html;charset=utf-8" >
-<title>2D Sierpinski Gasket</title>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8" >
+    <title>2D Sierpinski Gasket</title>
 
 
-<script id="vertex-shader" type="x-shader/x-vertex">
-
+    <script id="vertex-shader" type="x-shader/x-vertex">
 
 uniform float u_rotation;
 uniform float u_scale;
@@ -45,7 +44,7 @@ main()
 }
 </script>
 
-<script id="fragment-shader" type="x-shader/x-fragment">
+    <script id="fragment-shader" type="x-shader/x-fragment">
 precision mediump float;
 varying vec4 fColor;
 void
@@ -55,39 +54,91 @@ main()
 }
 </script>
 
-<script type="text/javascript" src="../Common/webgl-utils.js"></script>
-<script type="text/javascript" src="../Common/initShaders.js"></script>
-<script type="text/javascript" src="../Common/MV.js"></script>
-<script type="text/javascript" src="gasket5.js"></script>
-</head>   
+    <script type="text/javascript" src="../Common/webgl-utils.js"></script>
+    <script type="text/javascript" src="../Common/initShaders.js"></script>
+    <script type="text/javascript" src="../Common/MV.js"></script>
+    <script type="text/javascript" src="gasket5.js"></script>
+</head>
 
 
-<div > twist angle:  <b id = "degrees"> 0 </b> <input id="slider1" type="range" min="-512" max="512" step="1" value="0" />
-    max:512
+
+<div style="float: left">
+    <div > twist angle:  <b id = "degrees"> 0 </b> <input id="slider1" type="range" min="-512" max="512" step="1" value="0" />
+        max:512
+
+    </div>
+
+    <div> subdivision steps: <b id="steps">5</b> <input id="slider2" type="range"
+                                                        min="0" max="9" step="1" value="5" />
+        max:9
+    </div>
+
+    <div> scale: <b id="scale">0.5</b> <input id="scaleFactor" type="range"
+                                              min="0.0" max="1.0" step="0.1" value="0.5" />
+        max:1.0
+    </div>
 </div>
 
-<div> subdivision steps: <b id="steps">5</b> <input id="slider2" type="range"
-                              min="0" max="10" step="1" value="5" />
-    max:10
+<div style="float: none">
+    <div>
+        <select id="appearance" size="3" >
+
+            <option value="0" selected = selected>Gasket</option>
+            <option value="1">Solid</option>
+            <option value="2">Mesh</option>
+        </select>
+
+        <select id="geometry" size="3" >
+            <option value="0" selected = selected>Triangle</option>
+            <option value="1">Square</option>
+
+        </select>
+    </div>
 </div>
 
-<div> scale: <b id="scale">0.5</b> <input id="scaleFactor" type="range"
-                                                    min="0.0" max="1.0" step="0.1" value="0.5" />
-    max:1.0
+
+
+
+<div>
+
+
+    <input type="button" onClick="toggleAnimation()" value="toggle animation" >
+
+
+
+
+
+
+</div>
+
+<div>speed: <input id="speedSlider" type="range"
+                   min="1" max="480" step="1" value="60.0" /> <b id = 'speed'> 60 </b> degrees per sec </div>
+
+
+<div>
+
+
+
+    twist center x: <b type="text" id = 'twistX'> 0.0 </b>
+    twist center y: <b type="text" id = 'twistY'> 0.0 </b>
+
+    <form>
+        <input type="button" onClick="reCenter()" value="reCenter">
+
+    </form>
+</div>
+
+<div>
+
+    <div>
+    Click the canvas to change twist center.
+        </div>
+    <canvas id="gl-canvas" width="600" height="600">
+        Oops ... your browser doesn't support the HTML5 canvas element
+    </canvas>
+
 </div>
 
 
-<form>
-    <p>twist center x: <input type="text" id = 'twistX' value = '0.0' />
-        twist center y: <input type="text" id = 'twistY' value = '0.0' />
-        <input type="button" onClick="refresh()" value="refresh">
-    </p>
-</form>
-
-
-
-<canvas id="gl-canvas" width="600" height="600">
-Oops ... your browser doesn't support the HTML5 canvas element
-</canvas>
 </body>
 </html>

@@ -11,16 +11,26 @@ var bufferId;
 var cbufferId;
 var u_rotation;
 var u_scale;
-var twistCenter = vec2(0.0,0.0);
 var u_center;
+var twistCenter = [0.0,0.0];
+
+var geometry = 0; //0 for triangle
+var mode = 0; //0 for gasket 1 for solid 2 for mesh
+var animation = false;
+var speed;
+var theta;
+
 
 function init()
 {
     canvas = document.getElementById( "gl-canvas" );
 
+
+
     gl = WebGLUtils.setupWebGL( canvas );
     if ( !gl ) { alert( "WebGL isn't available" ); }
 
+    canvas.onmousedown = click;
     //
     //  Initialize our data for the Sierpinski Gasket
     //
@@ -43,7 +53,7 @@ function init()
 
     bufferId = gl.createBuffer();
     gl.bindBuffer( gl.ARRAY_BUFFER, bufferId );
-    gl.bufferData( gl.ARRAY_BUFFER, 8*Math.pow(4, 11), gl.STATIC_DRAW );
+    gl.bufferData( gl.ARRAY_BUFFER, 16*Math.pow(4, 11)*2, gl.STATIC_DRAW );
 
 
     // Associate out shader variables with our data buffer
@@ -55,7 +65,7 @@ function init()
 
     cbufferId = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER,cbufferId);
-    gl.bufferData(gl.ARRAY_BUFFER,16*Math.pow(4, 11),gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER,24*Math.pow(4, 11)*2, gl.STATIC_DRAW);
 
     var vColor = gl.getAttribLocation( program, "vColor" );
     gl.vertexAttribPointer( vColor, 3, gl.FLOAT, false, 0, 0 );
@@ -74,9 +84,9 @@ function init()
         if (targ.nodeType == 3) // defeat Safari bug
             targ = targ.parentNode;
 
-        var rotation = Number(targ.value);
-        document.getElementById("degrees").innerText = rotation;
-        gl.uniform1f(u_rotation,rotation);
+        theta = Number(targ.value);
+        document.getElementById("degrees").textContent = theta;
+        gl.uniform1f(u_rotation,theta);
         refresh();
     };
 
@@ -91,8 +101,9 @@ function init()
             targ = targ.parentNode;
 
         numTimesToSubdivide = Number(targ.value);
-        document.getElementById("steps").innerText = numTimesToSubdivide;
-        divideTriangle( vertices[0], vertices[1], vertices[2], numTimesToSubdivide);
+        document.getElementById("steps").textContent = numTimesToSubdivide;
+        clearVertices();
+        genVertices();
         sendVertices();
         refresh();
     };
@@ -108,32 +119,84 @@ function init()
 
         //console.log(scaleFactor);
         var scaleFactor = Number(targ.value);
-        document.getElementById("scale").innerText = scaleFactor;
+        document.getElementById("scale").textContent = scaleFactor;
 
         gl.uniform1f(u_scale,scaleFactor);
         refresh();
     };
 
 
+    document.getElementById("appearance").onclick = function(event) {
+        var targ;
+        if (event.target) targ = event.target;
+        else if (event.srcElement) targ = event.srcElement;
+        if (targ.nodeType == 3) // defeat Safari bug
+            targ = targ.parentNode;
 
+        mode = Number(targ.index);
+        clearVertices();
+        genVertices();
+        sendVertices();
+        refresh();
+
+    }
+
+    document.getElementById("geometry").onclick = function(event) {
+        var targ;
+        if (event.target) targ = event.target;
+        else if (event.srcElement) targ = event.srcElement;
+        if (targ.nodeType == 3) // defeat Safari bug
+            targ = targ.parentNode;
+
+        geometry = Number(targ.index);
+        clearVertices();
+        genVertices();
+        sendVertices();
+        refresh();
+
+    }
+
+    document.getElementById("speedSlider").onchange = function(event) {
+
+        var targ;
+        if (event.target) targ = event.target;
+        else if (event.srcElement) targ = event.srcElement;
+        if (targ.nodeType == 3) // defeat Safari bug
+            targ = targ.parentNode;
+
+        //console.log(scaleFactor);
+        speed = Number(targ.value);
+        document.getElementById("speed").textContent = speed;
+
+        //gl.uniform1f(u_scale,scaleFactor);
+        //refresh();
+    };
 
 
     numTimesToSubdivide = Number(document.getElementById("slider2").value);
 
-
-    var vertices = genVertices();
-    //console.log(vertices);
     function genVertices() {
-        return [(vec2(-1.0,1.0/Math.cos(radians(30))-2.0*Math.sin(radians(60)))),
-            (vec2(0.0,1.0/Math.cos(radians(30)))),
-            (vec2(1.0,1.0/Math.cos(radians(30))-2.0*Math.sin(radians(60))))];
+        var vertices;
+        if (geometry == 0) {
+            vertices = [(vec2(-1.0, 1.0 / Math.cos(radians(30)) - 2.0 * Math.sin(radians(60)))),
+                (vec2(0.0, 1.0 / Math.cos(radians(30)))),
+                (vec2(1.0, 1.0 / Math.cos(radians(30)) - 2.0 * Math.sin(radians(60))))];
+            divideTriangle(vertices[0], vertices[1], vertices[2], numTimesToSubdivide);
 
+        } else {
+            vertices = [vec2(-1.0,1.0),vec2(-1.0,-1.0),vec2(1.0,-1.0),vec2(1.0,1.0)];
+            divideTriangle(vertices[0], vertices[1], vertices[3], numTimesToSubdivide);
+            divideTriangle(vertices[2], vertices[1], vertices[3], numTimesToSubdivide);
+        }
     }
 
-    divideTriangle( vertices[0], vertices[1], vertices[2], numTimesToSubdivide);
-    sendVertices();
 
+
+    clearVertices();
+    genVertices();
+    sendVertices();
     refresh();
+    if (animation) render();
 }
 
 
@@ -214,24 +277,53 @@ function divideTriangle( a, b, c, count )
             nextColor.push(mix(c3,c2,0.5));
             nextColor.push(c3);
 
-            /*
-            next.push(mix(v1,v2,0.5));
-            next.push(mix(v3,v2,0.5));
-            next.push(mix(v1,v3,0.5));
-            */
+            if (mode > 0) {
+                next.push(mix(v1,v2,0.5));
+                next.push(mix(v3,v2,0.5));
+                next.push(mix(v1,v3,0.5));
+                nextColor.push(mix(c1,c2,0.5));
+                nextColor.push(mix(c3,c2,0.5));
+                nextColor.push(mix(c1,c3,0.5));
+
+            }
+
         }
         swap();
     }
 
 
-    points = [];
-    colors = [];
+    //points = [];
+    //colors = [];
     //console.log(curr);
 
-    for (idx in curr) {
-        points.push(curr[idx]);
-        colors.push(currColor[idx]);
+    if (mode == 2) {
+        for (idx = 0; idx < curr.length; idx += 3) {
+            points.push(curr[idx]);
+            colors.push(currColor[idx]);
+
+            points.push(curr[idx+1]);
+            colors.push(currColor[idx+1]);
+
+            points.push(curr[idx+1]);
+            colors.push(currColor[idx+1]);
+
+            points.push(curr[idx+2]);
+            colors.push(currColor[idx+2]);
+
+            points.push(curr[idx+2]);
+            colors.push(currColor[idx+2]);
+
+            points.push(curr[idx]);
+            colors.push(currColor[idx]);
+        }
+
+    }else {
+        for (idx in curr) {
+            points.push(curr[idx]);
+            colors.push(currColor[idx]);
+        }
     }
+
 
 }
 
@@ -240,6 +332,10 @@ function divideTriangle( a, b, c, count )
 
 window.onload = init;
 
+function clearVertices() {
+    points = [];
+    colors = [];
+}
 
 //send vertices to gpu
 function sendVertices() {
@@ -250,16 +346,58 @@ function sendVertices() {
     gl.bufferSubData(gl.ARRAY_BUFFER,0,flatten(colors));
 }
 
+
+var direction = 1;
 function render()
 {
     gl.clearColor(0.0,0.0,0.0,1.0);
     gl.clear( gl.COLOR_BUFFER_BIT );
-    gl.drawArrays( gl.TRIANGLES, 0, points.length );
+    gl.drawArrays( mode == 2 ?gl.LINES:gl.TRIANGLES, 0, points.length );
+
+
+    if (animation) {
+
+        //theta = parseFloat(document.getElementById("slider1").value);
+
+        var max = parseFloat(document.getElementById("slider1").max);
+        var min = parseFloat(document.getElementById("slider1").min);
+
+        var delta = speed/60;
+
+
+        theta += (direction > 0?delta:-delta);
+        //console.log(theta);
+
+        if (theta > max) {
+            direction = -1;
+            theta = max;
+        }else if (theta < min) {
+            direction = 1;
+            theta = min;
+        }
+
+
+        //console.log(theta);
+
+        if (Math.abs(theta - parseFloat(document.getElementById("slider1").value)) >= 1.0) {
+            if (direction > 0) {
+                document.getElementById("slider1").value = Math.floor(theta);
+                document.getElementById("degrees").textContent = Math.floor(theta);
+            }else{
+                document.getElementById("slider1").value = Math.ceil(theta);
+                document.getElementById("degrees").textContent = Math.ceil(theta);
+            }
+
+        }
+        gl.uniform1f(u_rotation,theta);
+        requestAnimationFrame(render);
+    }
 }
 
 
 function refresh(){
 
+    /*
     var twistCenter = [0.0,0.0];
     twistCenter[0] = Number(document.getElementById('twistX').value);
     twistCenter[1] = Number(document.getElementById('twistY').value);
@@ -274,10 +412,42 @@ function refresh(){
         document.getElementById('twistY').value = '0.0';
 
     }
-
+*/
     gl.uniform2f(u_center,twistCenter[0],twistCenter[1]);
     gl.uniform1f(u_rotation,Number(document.getElementById("slider1").value));
     gl.uniform1f(u_scale,Number(document.getElementById('scaleFactor').value));
+    theta = parseFloat(document.getElementById("slider1").value);
+    gl.uniform1f(u_rotation,theta);
+    speed = parseFloat(document.getElementById("speedSlider").value);
+    if (!animation) {render();}
+}
 
-    render();
+function toggleAnimation() {
+    animation = !animation;
+    if (animation) render();
+}
+
+function click(ev) {
+    var x = ev.clientX;
+    var y = ev.clientY;
+    var rect = ev.target.getBoundingClientRect();
+    x = ((x-rect.left) - canvas.width/2)/(canvas.width/2);
+    y = ((canvas.height/2)- (y-rect.top))/(canvas.width/2);
+
+    twistCenter = [x,y];
+    x = String(x);
+    y = String(y);
+    if (x.length > 4) x = x.slice(0,4);
+    if (y.length > 4) y = y.slice(0,4);
+    document.getElementById("twistX").textContent = x;
+    document.getElementById("twistY").textContent = y;
+
+    refresh();
+}
+
+function reCenter() {
+    twistCenter = [0.0,0.0];
+    document.getElementById("twistX").textContent = "0.0";
+    document.getElementById("twistY").textContent = "0.0";
+    refresh();
 }
